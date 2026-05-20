@@ -42,7 +42,6 @@
   .connection-pill .dot.offline { background: var(--vermelho); }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  /* Firebase config panel - hidden by default */
   .config-wrapper {
     max-height: 0; overflow: hidden;
     transition: max-height 0.4s ease, opacity 0.3s ease;
@@ -229,7 +228,7 @@
 <!-- HEADER -->
 <div class="header">
   <div class="logo-area">
-    <img src="https://cdn.oreateai.com/aiimage/upload/b7be90f3aa50d0dde3d4f3eb/721d7ad23baeb2e2eed0f3dff9642a04.png" alt="Pitbull One Fight Logo" class="logo-img" onerror="this.style.display='none'">
+    <img src="logo.png" alt="Pitbull One Fight Logo" class="logo-img" onerror="this.style.display='none'">
     <div class="logo-text">
       <h1>Pitbull One Fight</h1>
       <span>Gestão Financeira em Nuvem</span>
@@ -257,19 +256,19 @@
 
 <!-- TABS -->
 <div class="tabs-container">
-  <button class="tab-btn active" onclick="showTab('dashboard')">
+  <button class="tab-btn active" onclick="showTab('dashboard', this)">
     <i class="fas fa-chart-line"></i> Dashboard
   </button>
-  <button class="tab-btn" onclick="showTab('patrocinadores')">
+  <button class="tab-btn" onclick="showTab('patrocinadores', this)">
     <i class="fas fa-handshake"></i> Patrocinadores
   </button>
-  <button class="tab-btn" onclick="showTab('atletas')">
+  <button class="tab-btn" onclick="showTab('atletas', this)">
     <i class="fas fa-user-ninja"></i> Atletas
   </button>
-  <button class="tab-btn" onclick="showTab('ingressos')">
+  <button class="tab-btn" onclick="showTab('ingressos', this)">
     <i class="fas fa-ticket-alt"></i> Ingressos
   </button>
-  <button class="tab-btn" onclick="showTab('saidas')">
+  <button class="tab-btn" onclick="showTab('saidas', this)">
     <i class="fas fa-arrow-trend-down"></i> Saídas
   </button>
 </div>
@@ -428,6 +427,7 @@ window.toggleConfig = function() {
 window.connectFirebase = async function() {
   const url = document.getElementById('firebaseUrl').value.trim();
   if (!url) { showToast('Insira a URL do Firebase!', 'error'); return; }
+  if (isConnected) { showToast('Já está conectado! Desconecte primeiro.', 'info'); return; }
   showLoading('Conectando ao Firebase...');
   try {
     const appConfig = { databaseURL: url };
@@ -485,7 +485,8 @@ function setupListeners() {
 }
 
 function renderTable(tableName, data) {
-  const tbody = document.querySelector(`#${tableName}Table tbody`);
+  const tableMap = { patrocinadores: 'patrocTable', atletas: 'atletasTable', ingressos: 'ingressosTable', saidas: 'saidasTable' };
+  const tbody = document.querySelector(`#${tableMap[tableName]} tbody`);
   if (!tbody) return;
   tbody.innerHTML = '';
   const rows = data ? Object.entries(data).map(([id, row]) => ({ id, ...row })) : [];
@@ -550,7 +551,7 @@ function createRowElement(tableName, data) {
   return tr;
 }
 
-function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function optPag(v) {
   const opts = ['Pix','Transferência','Boleto','Dinheiro','Cartão','Cartão Débito','Cartão Crédito'];
   return opts.map(o => `<option value="${o}" ${o===v?'selected':''}>${o}</option>`).join('');
@@ -592,7 +593,14 @@ window.syncStatus = function(el, tableName, id, field) {
 };
 
 window.addRow = async function(tableId) {
-  const tableName = tableId.replace('Table','');
+  const map = {
+    'patrocTable': 'patrocinadores',
+    'atletasTable': 'atletas',
+    'ingressosTable': 'ingressos',
+    'saidasTable': 'saidas'
+  };
+  const tableName = map[tableId];
+  if (!tableName) { showToast('Tabela desconhecida!', 'error'); return; }
   if (isConnected && db) {
     const newRef = push(ref(db, tableName));
     await set(newRef, { data: new Date().toISOString().split('T')[0], status: 'pendente' });
@@ -648,11 +656,11 @@ window.exportCSV = function(tableId, filename) {
   showToast('CSV exportado!', 'success');
 };
 
-window.showTab = function(tabId) {
+window.showTab = function(tabId, btn) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(tabId).classList.add('active');
-  event.currentTarget.classList.add('active');
+  if (btn) btn.classList.add('active');
   if (tabId === 'dashboard') setTimeout(updateDashboard, 100);
 };
 
