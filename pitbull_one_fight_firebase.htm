@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pitbull One Fight — Gestão Financeira (Cloud)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root {
+    --vermelho: #D90000; --preto: #0A0A0A; --branco: #FFFFFF;
+    --cinza-escuro: #1A1A1A; --cinza-medio: #2D2D2D; --cinza-claro: #3D3D3D;
+    --texto-cinza: #B0B0B0; --verde: #22C55E; --amarelo: #EAB308;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--preto); color: var(--branco); min-height: 100vh; }
+
+  .header {
+    background: linear-gradient(135deg, var(--preto) 0%, var(--cinza-escuro) 50%, var(--preto) 100%);
+    border-bottom: 3px solid var(--vermelho);
+    padding: 16px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 1000;
+    box-shadow: 0 4px 30px rgba(217,0,0,0.3);
+  }
+  .logo-area { display: flex; align-items: center; gap: 20px; }
+  .logo-img { width: 70px; height: 70px; object-fit: contain; filter: drop-shadow(0 0 12px rgba(217,0,0,0.4)); border-radius: 8px; }
+  .logo-text h1 { font-family: 'Oswald', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; background: linear-gradient(90deg, var(--branco), var(--vermelho)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .logo-text span { font-size: 12px; color: var(--texto-cinza); letter-spacing: 4px; text-transform: uppercase; }
+  .header-info { text-align: right; }
+  .header-info .date { font-size: 13px; color: var(--texto-cinza); }
+  .header-info .status { font-size: 14px; color: var(--verde); font-weight: 600; margin-top: 4px; }
+  .header-info .status.offline { color: var(--vermelho); }
+
+  /* Firebase setup panel */
+  .firebase-panel {
+    background: linear-gradient(145deg, var(--cinza-escuro), var(--cinza-medio));
+    border: 1px solid var(--cinza-claro);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin: 20px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .firebase-panel label { font-size: 13px; color: var(--texto-cinza); white-space: nowrap; }
+  .firebase-panel input {
+    flex: 1; min-width: 300px;
+    padding: 10px 14px; border-radius: 8px; border: 1px solid var(--cinza-claro);
+    background: var(--preto); color: var(--branco); font-family: 'Inter'; font-size: 13px;
+  }
+  .firebase-panel input:focus { border-color: var(--vermelho); outline: none; }
+  .firebase-panel .btn { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 13px; }
+  .btn-connect { background: var(--verde); color: var(--branco); }
+  .btn-connect:hover { background: #16A34A; }
+  .btn-disconnect { background: var(--vermelho); color: var(--branco); }
+  .sync-indicator { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .sync-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--verde); animation: pulse 2s infinite; }
+  .sync-dot.offline { background: var(--vermelho); animation: none; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .tabs-container {
+    background: var(--cinza-escuro); padding: 0 40px;
+    display: flex; gap: 2px; border-bottom: 1px solid var(--cinza-medio);
+    overflow-x: auto;
+  }
+  .tab-btn {
+    padding: 16px 28px; background: transparent; border: none; color: var(--texto-cinza);
+    font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 500;
+    letter-spacing: 1px; text-transform: uppercase; cursor: pointer;
+    transition: all 0.3s; border-bottom: 3px solid transparent;
+    display: flex; align-items: center; gap: 10px; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--branco); background: rgba(217,0,0,0.1); }
+  .tab-btn.active { color: var(--vermelho); border-bottom-color: var(--vermelho); background: rgba(217,0,0,0.15); }
+
+  .content { padding: 30px 40px; max-width: 1600px; margin: 0 auto; }
+  .tab-content { display: none; animation: fadeIn 0.4s ease; }
+  .tab-content.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .cards-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 30px;
+  }
+  .card {
+    background: linear-gradient(145deg, var(--cinza-escuro), var(--cinza-medio));
+    border-radius: 16px; padding: 24px; border: 1px solid var(--cinza-claro);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transition: transform 0.3s, box-shadow 0.3s; position: relative; overflow: hidden;
+  }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--vermelho); opacity: 0.8; }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(217,0,0,0.2); }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .card-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .card-icon.red { background: rgba(217,0,0,0.2); color: var(--vermelho); }
+  .card-icon.green { background: rgba(34,197,94,0.2); color: var(--verde); }
+  .card-icon.yellow { background: rgba(234,179,8,0.2); color: var(--amarelo); }
+  .card-icon.blue { background: rgba(59,130,246,0.2); color: #3B82F6; }
+  .card-icon.white { background: rgba(255,255,255,0.1); color: var(--branco); }
+  .card-label { font-size: 13px; color: var(--texto-cinza); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .card-value { font-family: 'Oswald', sans-serif; font-size: 32px; font-weight: 700; }
+  .card-trend { font-size: 12px; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+  .trend-up { color: var(--verde); } .trend-down { color: var(--vermelho); }
+
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+  .chart-box { background: linear-gradient(145deg, var(--cinza-escuro), var(--cinza-medio)); border-radius: 16px; padding: 24px; border: 1px solid var(--cinza-claro); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .chart-box h3 { font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+  .chart-box h3 i { color: var(--vermelho); }
+  .chart-wrapper { position: relative; height: 300px; }
+
+  .indicators-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+  .indicator-box { background: linear-gradient(145deg, var(--cinza-escuro), var(--cinza-medio)); border-radius: 16px; padding: 24px; border: 1px solid var(--cinza-claro); }
+  .indicator-box h4 { font-family: 'Oswald', sans-serif; font-size: 16px; margin-bottom: 16px; color: var(--texto-cinza); }
+  .progress-bar-bg { background: var(--cinza-claro); border-radius: 10px; height: 24px; overflow: hidden; margin-bottom: 10px; }
+  .progress-bar-fill { height: 100%; border-radius: 10px; transition: width 1s ease; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; font-size: 12px; font-weight: 600; }
+  .progress-bar-fill.green { background: linear-gradient(90deg, #16A34A, var(--verde)); }
+  .progress-bar-fill.red { background: linear-gradient(90deg, #991B1B, var(--vermelho)); }
+
+  .section-title { font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .section-title i { color: var(--vermelho); }
+
+  .table-container { background: linear-gradient(145deg, var(--cinza-escuro), var(--cinza-medio)); border-radius: 16px; border: 1px solid var(--cinza-claro); overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4); margin-bottom: 30px; }
+  .table-toolbar { padding: 16px 24px; border-bottom: 1px solid var(--cinza-claro); display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .btn { padding: 10px 20px; border-radius: 8px; border: none; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px; }
+  .btn-primary { background: var(--vermelho); color: var(--branco); }
+  .btn-primary:hover { background: #B80000; box-shadow: 0 4px 20px rgba(217,0,0,0.4); }
+  .btn-outline { background: transparent; color: var(--texto-cinza); border: 1px solid var(--cinza-claro); }
+  .btn-outline:hover { border-color: var(--vermelho); color: var(--vermelho); }
+  .search-box { padding: 10px 16px; border-radius: 8px; border: 1px solid var(--cinza-claro); background: var(--preto); color: var(--branco); font-family: 'Inter'; font-size: 13px; outline: none; flex: 1; min-width: 200px; }
+  .search-box:focus { border-color: var(--vermelho); }
+
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table thead th { background: var(--preto); padding: 14px 16px; text-align: left; font-weight: 600; color: var(--texto-cinza); text-transform: uppercase; font-size: 11px; letter-spacing: 1px; border-bottom: 2px solid var(--vermelho); white-space: nowrap; }
+  .data-table tbody tr { border-bottom: 1px solid var(--cinza-claro); transition: background 0.2s; }
+  .data-table tbody tr:hover { background: rgba(217,0,0,0.05); }
+  .data-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+  .data-table tbody tr:nth-child(even):hover { background: rgba(217,0,0,0.08); }
+  .data-table td { padding: 12px 16px; color: var(--branco); vertical-align: middle; }
+  .data-table input, .data-table select, .data-table textarea { background: var(--preto); border: 1px solid var(--cinza-claro); border-radius: 6px; padding: 8px 10px; color: var(--branco); font-family: 'Inter'; font-size: 13px; outline: none; width: 100%; }
+  .data-table input:focus, .data-table select:focus { border-color: var(--vermelho); }
+  .data-table textarea { resize: vertical; min-height: 32px; }
+  .data-table .total-input { background: var(--cinza-escuro) !important; color: var(--verde); font-weight: 600; }
+
+  .status-pago { background: rgba(34,197,94,0.2); color: var(--verde); border: 1px solid rgba(34,197,94,0.3); }
+  .status-pendente { background: rgba(234,179,8,0.2); color: var(--amarelo); border: 1px solid rgba(234,179,8,0.3); }
+  .status-cancelado { background: rgba(217,0,0,0.2); color: var(--vermelho); border: 1px solid rgba(217,0,0,0.3); }
+
+  .table-footer { padding: 16px 24px; background: var(--preto); border-top: 1px solid var(--cinza-claro); display: flex; justify-content: space-between; align-items: center; }
+  .total-display { font-family: 'Oswald', sans-serif; font-size: 20px; font-weight: 700; }
+  .total-display span { color: var(--vermelho); }
+
+  .mini-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .mini-card { background: linear-gradient(145deg, var(--cinza-escuro), var(--cinza-medio)); border-radius: 12px; padding: 20px; border: 1px solid var(--cinza-claro); text-align: center; }
+  .mini-card .mini-value { font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 700; color: var(--vermelho); }
+  .mini-card .mini-label { font-size: 12px; color: var(--texto-cinza); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+  .delete-btn { background: transparent; border: none; color: var(--vermelho); cursor: pointer; font-size: 14px; padding: 4px; transition: transform 0.2s; }
+  .delete-btn:hover { transform: scale(1.2); }
+
+  /* Toast */
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+  .toast {
+    background: linear-gradient(145deg, var(--cinza-escuro), var(--cinza-medio));
+    border: 1px solid var(--cinza-claro); border-left: 4px solid var(--verde);
+    border-radius: 10px; padding: 14px 20px; color: var(--branco);
+    font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display: flex; align-items: center; gap: 10px;
+    animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+  }
+  .toast.error { border-left-color: var(--vermelho); }
+  .toast.info { border-left-color: #3B82F6; }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes fadeOut { to { opacity: 0; transform: translateX(100%); } }
+
+  .loading-overlay {
+    position: fixed; inset: 0; background: rgba(10,10,10,0.85);
+    display: flex; align-items: center; justify-content: center; z-index: 9998;
+    backdrop-filter: blur(4px);
+  }
+  .loading-box { text-align: center; }
+  .loading-box i { font-size: 40px; color: var(--vermelho); animation: spin 1s linear infinite; }
+  .loading-box p { margin-top: 16px; color: var(--texto-cinza); font-size: 14px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 1024px) {
+    .charts-row { grid-template-columns: 1fr; }
+    .content { padding: 20px; }
+    .tabs-container { padding: 0 20px; }
+    .firebase-panel { margin: 16px 20px; }
+  }
+  @media (max-width: 768px) {
+    .header { flex-direction: column; gap: 16px; text-align: center; }
+    .header-info { text-align: center; }
+    .cards-row { grid-template-columns: 1fr; }
+    .tab-btn { padding: 12px 16px; font-size: 13px; }
+    .data-table { font-size: 12px; }
+    .data-table th, .data-table td { padding: 8px 10px; }
+    .logo-img { width: 55px; height: 55px; }
+    .logo-text h1 { font-size: 24px; }
+    .firebase-panel { flex-direction: column; align-items: stretch; }
+    .firebase-panel input { min-width: unset; }
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--preto); }
+  ::-webkit-scrollbar-thumb { background: var(--cinza-claro); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--vermelho); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-area">
+    <img src="https://cdn.oreateai.com/aiimage/upload/b7be90f3aa50d0dde3d4f3eb/721d7ad23baeb2e2eed0f3dff9642a04.png" alt="Pitbull One Fight Logo" class="logo-img" onerror="this.style.display='none'">
+    <div class="logo-text">
+      <h1>Pitbull One Fight</h1>
+      <span>Gestão Financeira em Nuvem</span>
+    </div>
+  </div>
+  <div class="header-info">
+    <div class="date" id="currentDate"></div>
+    <div class="status" id="connectionStatus"><i class="fas fa-wifi" style="margin-right:6px;"></i>Conectando...</div>
+  </div>
+</div>
+
+<!-- FIREBASE PANEL -->
+<div class="firebase-panel" id="firebasePanel">
+  <label><i class="fas fa-database" style="color:var(--vermelho);margin-right:6px;"></i>URL do Firebase:</label>
+  <input type="text" id="firebaseUrl" placeholder="https://SEU-PROJETO-default-rtdb.firebaseio.com/" value="">
+  <button class="btn btn-connect" id="connectBtn" onclick="connectFirebase()"><i class="fas fa-plug"></i> Conectar</button>
+  <button class="btn btn-disconnect" id="disconnectBtn" onclick="disconnectFirebase()" style="display:none;"><i class="fas fa-unlink"></i> Desconectar</button>
+  <div class="sync-indicator" id="syncIndicator" style="display:none;">
+    <div class="sync-dot" id="syncDot"></div>
+    <span id="syncText">Sincronizado</span>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-container">
+  <button class="tab-btn active" onclick="showTab('dashboard')">
+    <i class="fas fa-chart-line"></i> Dashboard
+  </button>
+  <button class="tab-btn" onclick="showTab('patrocinadores')">
+    <i class="fas fa-handshake"></i> Patrocinadores
+  </button>
+  <button class="tab-btn" onclick="showTab('atletas')">
+    <i class="fas fa-user-ninja"></i> Atletas
+  </button>
+  <button class="tab-btn" onclick="showTab('ingressos')">
+    <i class="fas fa-ticket-alt"></i> Ingressos
+  </button>
+  <button class="tab-btn" onclick="showTab('saidas')">
+    <i class="fas fa-arrow-trend-down"></i> Saídas
+  </button>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="tab-content active">
+    <div class="cards-row">
+      <div class="card"><div class="card-header"><div class="card-label">Total de Patrocínios</div><div class="card-icon red"><i class="fas fa-handshake"></i></div></div><div class="card-value" id="dashPatrocinios">R$ 0,00</div><div class="card-trend trend-up"><i class="fas fa-arrow-up"></i> Receita principal</div></div>
+      <div class="card"><div class="card-header"><div class="card-label">Inscrições de Atletas</div><div class="card-icon green"><i class="fas fa-user-ninja"></i></div></div><div class="card-value" id="dashAtletas">R$ 0,00</div><div class="card-trend trend-up"><i class="fas fa-arrow-up"></i> Taxa de inscrição</div></div>
+      <div class="card"><div class="card-header"><div class="card-label">Vendas de Ingressos</div><div class="card-icon yellow"><i class="fas fa-ticket-alt"></i></div></div><div class="card-value" id="dashIngressos">R$ 0,00</div><div class="card-trend trend-up"><i class="fas fa-arrow-up"></i> Bilheteria</div></div>
+      <div class="card"><div class="card-header"><div class="card-label">Total de Saídas</div><div class="card-icon blue"><i class="fas fa-arrow-trend-down"></i></div></div><div class="card-value" id="dashSaidas">R$ 0,00</div><div class="card-trend trend-down"><i class="fas fa-arrow-down"></i> Despesas</div></div>
+      <div class="card"><div class="card-header"><div class="card-label">Saldo Final</div><div class="card-icon white"><i class="fas fa-wallet"></i></div></div><div class="card-value" id="dashSaldo">R$ 0,00</div><div class="card-trend" id="dashSaldoTrend"><i class="fas fa-minus"></i> Aguardando dados</div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-box"><h3><i class="fas fa-chart-pie"></i> Distribuição das Entradas</h3><div class="chart-wrapper"><canvas id="pieChart"></canvas></div></div>
+      <div class="chart-box"><h3><i class="fas fa-chart-bar"></i> Receitas x Despesas</h3><div class="chart-wrapper"><canvas id="barChart"></canvas></div></div>
+    </div>
+    <div class="indicators-row">
+      <div class="indicator-box">
+        <h4><i class="fas fa-percentage" style="color:var(--vermelho);margin-right:8px;"></i>Percentual de Lucro / Prejuízo</h4>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="lucroBar" style="width:0%">0%</div></div>
+        <p style="font-size:13px;color:var(--texto-cinza);margin-top:8px;" id="lucroText">Informe os dados para calcular</p>
+      </div>
+      <div class="indicator-box">
+        <h4><i class="fas fa-chart-pie" style="color:var(--vermelho);margin-right:8px;"></i>Resumo Financeiro</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
+          <div style="background:var(--preto);padding:12px;border-radius:8px;text-align:center;"><div style="font-size:11px;color:var(--texto-cinza);text-transform:uppercase;">Total Entradas</div><div style="font-family:'Oswald',sans-serif;font-size:20px;color:var(--verde);margin-top:4px;" id="resumoEntradas">R$ 0,00</div></div>
+          <div style="background:var(--preto);padding:12px;border-radius:8px;text-align:center;"><div style="font-size:11px;color:var(--texto-cinza);text-transform:uppercase;">Total Saídas</div><div style="font-family:'Oswald',sans-serif;font-size:20px;color:var(--vermelho);margin-top:4px;" id="resumoSaidas">R$ 0,00</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PATROCINADORES -->
+  <div id="patrocinadores" class="tab-content">
+    <div class="section-title"><i class="fas fa-handshake"></i> Patrocinadores / Investidores</div>
+    <div class="table-container">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="addRow('patrocTable')"><i class="fas fa-plus"></i> Novo Patrocinador</button>
+        <button class="btn btn-outline" onclick="exportCSV('patrocTable','patrocinadores')"><i class="fas fa-download"></i> Exportar CSV</button>
+        <input type="text" class="search-box" placeholder="Pesquisar patrocinador..." onkeyup="filterTable('patrocTable', this.value)">
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="patrocTable">
+          <thead><tr><th>Data</th><th>Empresa</th><th>Responsável</th><th>Telefone</th><th>Instagram</th><th>Cota</th><th>Valor</th><th>Pagamento</th><th>Status</th><th>Obs</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span style="color:var(--texto-cinza);font-size:13px;"><span id="patrocCount">0</span> registros</span>
+        <div class="total-display">Total: <span id="patrocTotal">R$ 0,00</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ATLETAS -->
+  <div id="atletas" class="tab-content">
+    <div class="section-title"><i class="fas fa-user-ninja"></i> Inscrição de Atletas</div>
+    <div class="table-container">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="addRow('atletasTable')"><i class="fas fa-plus"></i> Novo Atleta</button>
+        <button class="btn btn-outline" onclick="exportCSV('atletasTable','atletas')"><i class="fas fa-download"></i> Exportar CSV</button>
+        <input type="text" class="search-box" placeholder="Pesquisar atleta..." onkeyup="filterTable('atletasTable', this.value)">
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="atletasTable">
+          <thead><tr><th>Data</th><th>Nome</th><th>Academia</th><th>Modalidade</th><th>Categoria</th><th>Peso</th><th>Telefone</th><th>Instagram</th><th>Valor</th><th>Status</th><th>Obs</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span style="color:var(--texto-cinza);font-size:13px;"><span id="atletasCount">0</span> registros</span>
+        <div class="total-display">Total: <span id="atletasTotal">R$ 0,00</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INGRESSOS -->
+  <div id="ingressos" class="tab-content">
+    <div class="section-title"><i class="fas fa-ticket-alt"></i> Vendas de Ingressos</div>
+    <div class="mini-dashboard">
+      <div class="mini-card"><div class="mini-value" id="ingressosQtd">0</div><div class="mini-label">Ingressos Vendidos</div></div>
+      <div class="mini-card"><div class="mini-value" id="ingressosReceita">R$ 0,00</div><div class="mini-label">Receita Total</div></div>
+    </div>
+    <div class="table-container">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="addRow('ingressosTable')"><i class="fas fa-plus"></i> Nova Venda</button>
+        <button class="btn btn-outline" onclick="exportCSV('ingressosTable','ingressos')"><i class="fas fa-download"></i> Exportar CSV</button>
+        <input type="text" class="search-box" placeholder="Pesquisar venda..." onkeyup="filterTable('ingressosTable', this.value)">
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="ingressosTable">
+          <thead><tr><th>Data</th><th>Tipo</th><th>Qtd</th><th>Unitário</th><th>Total</th><th>Pagamento</th><th>Vendedor</th><th>Obs</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span style="color:var(--texto-cinza);font-size:13px;"><span id="ingressosCount">0</span> registros</span>
+        <div class="total-display">Total: <span id="ingressosTotal">R$ 0,00</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAIDAS -->
+  <div id="saidas" class="tab-content">
+    <div class="section-title"><i class="fas fa-arrow-trend-down"></i> Saídas / Despesas</div>
+    <div class="mini-dashboard">
+      <div class="mini-card"><div class="mini-value" id="saidasQtd">0</div><div class="mini-label">Despesas</div></div>
+      <div class="mini-card"><div class="mini-value" id="saidasValor">R$ 0,00</div><div class="mini-label">Total em Despesas</div></div>
+    </div>
+    <div class="table-container">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="addRow('saidasTable')"><i class="fas fa-plus"></i> Nova Despesa</button>
+        <button class="btn btn-outline" onclick="exportCSV('saidasTable','saidas')"><i class="fas fa-download"></i> Exportar CSV</button>
+        <input type="text" class="search-box" placeholder="Pesquisar despesa..." onkeyup="filterTable('saidasTable', this.value)">
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="saidasTable">
+          <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Pagamento</th><th>Responsável</th><th>Obs</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span style="color:var(--texto-cinza);font-size:13px;"><span id="saidasCount">0</span> registros</span>
+        <div class="total-display">Total: <span id="saidasTotalFooter">R$ 0,00</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay" style="display:none;">
+  <div class="loading-box"><i class="fas fa-circle-notch"></i><p id="loadingText">Sincronizando...</p></div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, onValue, set, push, update, remove, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+let app = null;
+let db = null;
+let listeners = [];
+let isConnected = false;
+let dbUrl = localStorage.getItem('pitbull_db_url') || '';
+if (dbUrl) document.getElementById('firebaseUrl').value = dbUrl;
+
+window.connectFirebase = async function() {
+  const url = document.getElementById('firebaseUrl').value.trim();
+  if (!url) { showToast('Insira a URL do Firebase!', 'error'); return; }
+  showLoading('Conectando ao Firebase...');
+  try {
+    const projectId = url.match(/https:\/\/(.+)\.firebaseio/)?.[1] || url.match(/https:\/\/(.+)\-default/)?.[1];
+    if (!projectId) throw new Error('URL inválida');
+    const appConfig = { databaseURL: url };
+    app = initializeApp(appConfig, 'pitbull-app');
+    db = getDatabase(app);
+    localStorage.setItem('pitbull_db_url', url);
+    isConnected = true;
+    document.getElementById('connectBtn').style.display = 'none';
+    document.getElementById('disconnectBtn').style.display = '';
+    document.getElementById('syncIndicator').style.display = 'flex';
+    document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-wifi" style="margin-right:6px;"></i>Online';
+    document.getElementById('connectionStatus').classList.remove('offline');
+    setupListeners();
+    showToast('Conectado com sucesso!', 'success');
+  } catch (e) {
+    console.error(e);
+    showToast('Erro ao conectar: ' + e.message, 'error');
+  } finally { hideLoading(); }
+};
+
+window.disconnectFirebase = function() {
+  listeners.forEach(l => off(l.ref, 'value', l.cb));
+  listeners = [];
+  isConnected = false;
+  app = null; db = null;
+  document.getElementById('connectBtn').style.display = '';
+  document.getElementById('disconnectBtn').style.display = 'none';
+  document.getElementById('syncIndicator').style.display = 'none';
+  document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-wifi" style="margin-right:6px;"></i>Offline';
+  document.getElementById('connectionStatus').classList.add('offline');
+  showToast('Desconectado do Firebase', 'info');
+};
+
+function setupListeners() {
+  const tables = ['patrocinadores','atletas','ingressos','saidas'];
+  tables.forEach(table => {
+    const dbRef = ref(db, table);
+    const callback = (snapshot) => {
+      const data = snapshot.val() || {};
+      renderTable(table, data);
+      updateDashboard();
+    };
+    onValue(dbRef, callback);
+    listeners.push({ ref: dbRef, cb: callback });
+  });
+}
+
+function renderTable(tableName, data) {
+  const tbody = document.querySelector(`#${tableName}Table tbody`);
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const rows = data ? Object.entries(data).map(([id, row]) => ({ id, ...row })) : [];
+  rows.forEach(row => {
+    const tr = createRowElement(tableName, row);
+    tbody.appendChild(tr);
+  });
+}
+
+function createRowElement(tableName, data) {
+  const tr = document.createElement('tr');
+  tr.dataset.id = data.id || '';
+  if (tableName === 'patrocinadores') {
+    tr.innerHTML = `
+      <td><input type="date" value="${data.data||''}" onchange="syncField(this,'${tableName}','${data.id}','data')"></td>
+      <td><input type="text" value="${esc(data.empresa||'')}" placeholder="Empresa" onchange="syncField(this,'${tableName}','${data.id}','empresa')"></td>
+      <td><input type="text" value="${esc(data.responsavel||'')}" placeholder="Responsável" onchange="syncField(this,'${tableName}','${data.id}','responsavel')"></td>
+      <td><input type="tel" value="${esc(data.telefone||'')}" placeholder="(00) 00000-0000" onchange="syncField(this,'${tableName}','${data.id}','telefone')"></td>
+      <td><input type="text" value="${esc(data.instagram||'')}" placeholder="@instagram" onchange="syncField(this,'${tableName}','${data.id}','instagram')"></td>
+      <td><input type="text" value="${esc(data.cota||'')}" placeholder="Ouro/Prata" onchange="syncField(this,'${tableName}','${data.id}','cota')"></td>
+      <td><input type="number" class="money-input" value="${data.valor||''}" placeholder="0,00" step="0.01" onchange="syncField(this,'${tableName}','${data.id}','valor')"></td>
+      <td><select onchange="syncField(this,'${tableName}','${data.id}','pagamento')">${optPag(data.pagamento)}</select></td>
+      <td><select class="${data.status||'status-pendente'}" onchange="syncStatus(this,'${tableName}','${data.id}','status')">${optStatus(data.status)}</select></td>
+      <td><textarea rows="1" onchange="syncField(this,'${tableName}','${data.id}','obs')">${esc(data.obs||'')}</textarea></td>
+      <td><button class="delete-btn" onclick="deleteRecord('${tableName}','${data.id}')"><i class="fas fa-trash"></i></button></td>`;
+  } else if (tableName === 'atletas') {
+    tr.innerHTML = `
+      <td><input type="date" value="${data.data||''}" onchange="syncField(this,'${tableName}','${data.id}','data')"></td>
+      <td><input type="text" value="${esc(data.nome||'')}" placeholder="Nome" onchange="syncField(this,'${tableName}','${data.id}','nome')"></td>
+      <td><input type="text" value="${esc(data.academia||'')}" placeholder="Academia" onchange="syncField(this,'${tableName}','${data.id}','academia')"></td>
+      <td><select onchange="syncField(this,'${tableName}','${data.id}','modalidade')">${optMod(data.modalidade)}</select></td>
+      <td><input type="text" value="${esc(data.categoria||'')}" placeholder="Categoria" onchange="syncField(this,'${tableName}','${data.id}','categoria')"></td>
+      <td><input type="number" value="${data.peso||''}" placeholder="00.0" step="0.1" onchange="syncField(this,'${tableName}','${data.id}','peso')"></td>
+      <td><input type="tel" value="${esc(data.telefone||'')}" placeholder="(00) 00000-0000" onchange="syncField(this,'${tableName}','${data.id}','telefone')"></td>
+      <td><input type="text" value="${esc(data.instagram||'')}" placeholder="@instagram" onchange="syncField(this,'${tableName}','${data.id}','instagram')"></td>
+      <td><input type="number" class="money-input" value="${data.valor||''}" placeholder="0,00" step="0.01" onchange="syncField(this,'${tableName}','${data.id}','valor')"></td>
+      <td><select class="${data.status||'status-pendente'}" onchange="syncStatus(this,'${tableName}','${data.id}','status')">${optStatus2(data.status)}</select></td>
+      <td><textarea rows="1" onchange="syncField(this,'${tableName}','${data.id}','obs')">${esc(data.obs||'')}</textarea></td>
+      <td><button class="delete-btn" onclick="deleteRecord('${tableName}','${data.id}')"><i class="fas fa-trash"></i></button></td>`;
+  } else if (tableName === 'ingressos') {
+    tr.innerHTML = `
+      <td><input type="date" value="${data.data||''}" onchange="syncField(this,'${tableName}','${data.id}','data')"></td>
+      <td><input type="text" value="${esc(data.tipo||'')}" placeholder="Ex: Pista VIP" onchange="syncField(this,'${tableName}','${data.id}','tipo')"></td>
+      <td><input type="number" class="qty-input" value="${data.qtd||''}" placeholder="0" min="1" onchange="calcIngresso(this);syncField(this,'${tableName}','${data.id}','qtd')"></td>
+      <td><input type="number" class="money-input unit-input" value="${data.unitario||''}" placeholder="0,00" step="0.01" onchange="calcIngresso(this);syncField(this,'${tableName}','${data.id}','unitario')"></td>
+      <td><input type="text" class="total-input" readonly value="${data.total ? 'R$ ' + Number(data.total).toLocaleString('pt-BR',{minimumFractionDigits:2}) : 'R$ 0,00'}"></td>
+      <td><select onchange="syncField(this,'${tableName}','${data.id}','pagamento')">${optPag(data.pagamento)}</select></td>
+      <td><input type="text" value="${esc(data.vendedor||'')}" placeholder="Vendedor" onchange="syncField(this,'${tableName}','${data.id}','vendedor')"></td>
+      <td><textarea rows="1" onchange="syncField(this,'${tableName}','${data.id}','obs')">${esc(data.obs||'')}</textarea></td>
+      <td><button class="delete-btn" onclick="deleteRecord('${tableName}','${data.id}')"><i class="fas fa-trash"></i></button></td>`;
+  } else if (tableName === 'saidas') {
+    tr.innerHTML = `
+      <td><input type="date" value="${data.data||''}" onchange="syncField(this,'${tableName}','${data.id}','data')"></td>
+      <td><input type="text" value="${esc(data.descricao||'')}" placeholder="Descrição" onchange="syncField(this,'${tableName}','${data.id}','descricao')"></td>
+      <td><select onchange="syncField(this,'${tableName}','${data.id}','categoria')">${optCat(data.categoria)}</select></td>
+      <td><input type="number" class="money-input" value="${data.valor||''}" placeholder="0,00" step="0.01" onchange="syncField(this,'${tableName}','${data.id}','valor')"></td>
+      <td><select onchange="syncField(this,'${tableName}','${data.id}','pagamento')">${optPag(data.pagamento)}</select></td>
+      <td><input type="text" value="${esc(data.responsavel||'')}" placeholder="Responsável" onchange="syncField(this,'${tableName}','${data.id}','responsavel')"></td>
+      <td><textarea rows="1" onchange="syncField(this,'${tableName}','${data.id}','obs')">${esc(data.obs||'')}</textarea></td>
+      <td><button class="delete-btn" onclick="deleteRecord('${tableName}','${data.id}')"><i class="fas fa-trash"></i></button></td>`;
+  }
+  return tr;
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function optPag(v) {
+  const opts = ['Pix','Transferência','Boleto','Dinheiro','Cartão','Cartão Débito','Cartão Crédito'];
+  return opts.map(o => `<option value="${o}" ${o===v?'selected':''}>${o}</option>`).join('');
+}
+function optStatus(v) {
+  const m = {pendente:'Pendente',pago:'Pago',cancelado:'Cancelado'};
+  return Object.entries(m).map(([k,t]) => `<option value="${k}" ${k===v?'selected':''}>${t}</option>`).join('');
+}
+function optStatus2(v) {
+  const m = {pendente:'Pendente',pago:'Pago'};
+  return Object.entries(m).map(([k,t]) => `<option value="${k}" ${k===v?'selected':''}>${t}</option>`).join('');
+}
+function optMod(v) {
+  const opts = ['MMA','Muay Thai','Boxe','Jiu-Jitsu','K1'];
+  return opts.map(o => `<option value="${o}" ${o===v?'selected':''}>${o}</option>`).join('');
+}
+function optCat(v) {
+  const opts = ['Estrutura','Marketing','Premiação','Staff','Arbitragem','Som e Iluminação','Segurança','Alimentação','Outros'];
+  return opts.map(o => `<option value="${o}" ${o===v?'selected':''}>${o}</option>`).join('');
+}
+
+window.syncField = function(el, tableName, id, field) {
+  if (!db) return;
+  const val = el.type === 'number' ? (parseFloat(el.value) || 0) : el.value;
+  const updates = {}; updates[field] = val;
+  if (tableName === 'ingressos' && (field === 'qtd' || field === 'unitario')) {
+    const row = el.closest('tr');
+    const qtd = parseFloat(row.querySelector('.qty-input')?.value) || 0;
+    const unit = parseFloat(row.querySelector('.unit-input')?.value) || 0;
+    updates.total = qtd * unit;
+    row.querySelector('.total-input').value = formatMoney(updates.total);
+  }
+  update(ref(db, `${tableName}/${id}`), updates);
+};
+
+window.syncStatus = function(el, tableName, id, field) {
+  el.className = el.value;
+  syncField(el, tableName, id, field);
+};
+
+window.addRow = async function(tableId) {
+  const tableName = tableId.replace('Table','');
+  if (isConnected && db) {
+    const newRef = push(ref(db, tableName));
+    await set(newRef, { data: new Date().toISOString().split('T')[0], status: 'pendente' });
+    showToast('Registro adicionado!', 'success');
+  } else {
+    showToast('Conecte-se ao Firebase primeiro!', 'error');
+  }
+};
+
+window.deleteRecord = async function(tableName, id) {
+  if (!confirm('Deseja realmente excluir este registro?')) return;
+  if (isConnected && db) {
+    await remove(ref(db, `${tableName}/${id}`));
+    showToast('Registro removido!', 'info');
+  }
+};
+
+window.calcIngresso = function(input) {
+  const row = input.closest('tr');
+  const qtd = parseFloat(row.querySelector('.qty-input')?.value) || 0;
+  const unit = parseFloat(row.querySelector('.unit-input')?.value) || 0;
+  row.querySelector('.total-input').value = formatMoney(qtd * unit);
+};
+
+window.filterTable = function(tableId, query) {
+  const table = document.getElementById(tableId);
+  const q = query.toLowerCase();
+  table.querySelectorAll('tbody tr').forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+};
+
+window.exportCSV = function(tableId, filename) {
+  const table = document.getElementById(tableId);
+  let csv = '';
+  table.querySelectorAll('thead tr').forEach(tr => {
+    const cells = Array.from(tr.querySelectorAll('th')).map(th => '"' + th.textContent.trim() + '"');
+    csv += cells.join(';') + '\n';
+  });
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    if (tr.style.display === 'none') return;
+    const cells = Array.from(tr.querySelectorAll('td')).map(td => {
+      const inp = td.querySelector('input,select,textarea');
+      return '"' + (inp ? inp.value : td.textContent.trim()) + '"';
+    });
+    csv += cells.join(';') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `pitbull_${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
+  showToast('CSV exportado!', 'success');
+};
+
+window.showTab = function(tabId) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (tabId === 'dashboard') setTimeout(updateDashboard, 100);
+};
+
+function formatMoney(value) {
+  return 'R$ ' + Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function calcTableSum(tableId, colIdx, statusIdx = -1) {
+  const table = document.getElementById(tableId);
+  let sum = 0;
+  table.querySelectorAll('tbody tr').forEach(row => {
+    if (row.style.display === 'none') return;
+    const cells = row.querySelectorAll('td');
+    if (statusIdx >= 0) {
+      const sel = cells[statusIdx]?.querySelector('select');
+      if (sel && sel.value === 'cancelado') return;
+    }
+    const inp = cells[colIdx]?.querySelector('input[type="number"]');
+    if (inp && inp.value) sum += parseFloat(inp.value) || 0;
+  });
+  return sum;
+}
+
+function countRows(tableId) {
+  return document.getElementById(tableId).querySelectorAll('tbody tr').length;
+}
+
+window.updateDashboard = function() {
+  const patroc = calcTableSum('patrocTable', 6, 8);
+  const atletas = calcTableSum('atletasTable', 8, 9);
+  let ingressos = 0, ingressosQtd = 0;
+  document.getElementById('ingressosTable').querySelectorAll('tbody tr').forEach(row => {
+    if (row.style.display === 'none') return;
+    const qtd = parseFloat(row.querySelector('.qty-input')?.value) || 0;
+    const unit = parseFloat(row.querySelector('.unit-input')?.value) || 0;
+    ingressos += qtd * unit; ingressosQtd += qtd;
+  });
+  const saidas = calcTableSum('saidasTable', 3);
+  const totalEntradas = patroc + atletas + ingressos;
+  const saldo = totalEntradas - saidas;
+
+  document.getElementById('dashPatrocinios').textContent = formatMoney(patroc);
+  document.getElementById('dashAtletas').textContent = formatMoney(atletas);
+  document.getElementById('dashIngressos').textContent = formatMoney(ingressos);
+  document.getElementById('dashSaidas').textContent = formatMoney(saidas);
+  document.getElementById('dashSaldo').textContent = formatMoney(saldo);
+
+  const trendEl = document.getElementById('dashSaldoTrend');
+  if (saldo > 0) { trendEl.className = 'card-trend trend-up'; trendEl.innerHTML = '<i class="fas fa-arrow-up"></i> Lucro operacional'; }
+  else if (saldo < 0) { trendEl.className = 'card-trend trend-down'; trendEl.innerHTML = '<i class="fas fa-arrow-down"></i> Prejuízo'; }
+  else { trendEl.className = 'card-trend'; trendEl.innerHTML = '<i class="fas fa-minus"></i> Neutro'; }
+
+  document.getElementById('patrocTotal').textContent = formatMoney(patroc);
+  document.getElementById('atletasTotal').textContent = formatMoney(atletas);
+  document.getElementById('ingressosTotal').textContent = formatMoney(ingressos);
+  document.getElementById('saidasTotalFooter').textContent = formatMoney(saidas);
+  document.getElementById('patrocCount').textContent = countRows('patrocTable');
+  document.getElementById('atletasCount').textContent = countRows('atletasTable');
+  document.getElementById('ingressosCount').textContent = countRows('ingressosTable');
+  document.getElementById('saidasCount').textContent = countRows('saidasTable');
+  document.getElementById('ingressosQtd').textContent = ingressosQtd;
+  document.getElementById('ingressosReceita').textContent = formatMoney(ingressos);
+  document.getElementById('saidasQtd').textContent = countRows('saidasTable');
+  document.getElementById('saidasValor').textContent = formatMoney(saidas);
+  document.getElementById('resumoEntradas').textContent = formatMoney(totalEntradas);
+  document.getElementById('resumoSaidas').textContent = formatMoney(saidas);
+
+  const lucroBar = document.getElementById('lucroBar');
+  const lucroText = document.getElementById('lucroText');
+  if (totalEntradas > 0) {
+    const pct = ((saldo / totalEntradas) * 100);
+    const absPct = Math.min(Math.abs(pct), 100);
+    lucroBar.style.width = absPct + '%';
+    lucroBar.textContent = pct.toFixed(1) + '%';
+    if (pct >= 0) { lucroBar.className = 'progress-bar-fill green'; lucroText.innerHTML = '<span style="color:var(--verde);"><i class="fas fa-arrow-up"></i> Lucro de ' + pct.toFixed(1) + '% sobre as receitas</span>'; }
+    else { lucroBar.className = 'progress-bar-fill red'; lucroText.innerHTML = '<span style="color:var(--vermelho);"><i class="fas fa-arrow-down"></i> Prejuízo de ' + Math.abs(pct).toFixed(1) + '% sobre as receitas</span>'; }
+  } else { lucroBar.style.width = '0%'; lucroBar.textContent = '0%'; lucroText.textContent = 'Informe os dados para calcular'; }
+
+  updateCharts();
+};
+
+let pieChartInst = null, barChartInst = null;
+function updateCharts() {
+  const patroc = calcTableSum('patrocTable', 6, 8);
+  const atletas = calcTableSum('atletasTable', 8, 9);
+  let ingressos = 0;
+  document.getElementById('ingressosTable').querySelectorAll('tbody tr').forEach(row => {
+    if (row.style.display === 'none') return;
+    const q = parseFloat(row.querySelector('.qty-input')?.value) || 0;
+    const u = parseFloat(row.querySelector('.unit-input')?.value) || 0;
+    ingressos += q * u;
+  });
+  const saidas = calcTableSum('saidasTable', 3);
+  const totalEntradas = patroc + atletas + ingressos;
+
+  const pieCtx = document.getElementById('pieChart');
+  if (pieCtx) {
+    if (pieChartInst) pieChartInst.destroy();
+    pieChartInst = new Chart(pieCtx, {
+      type: 'doughnut', data: {
+        labels: ['Patrocínios','Inscrições','Ingressos'],
+        datasets: [{ data: [patroc, atletas, ingressos], backgroundColor: ['#D90000','#22C55E','#EAB308'], borderColor: '#0A0A0A', borderWidth: 3, hoverOffset: 10 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#B0B0B0', font: { family:'Inter', size:12 }, padding: 20 } }, tooltip: { backgroundColor: '#1A1A1A', titleColor: '#fff', bodyColor: '#B0B0B0', borderColor: '#3D3D3D', borderWidth: 1, callbacks: { label: function(ctx) { const v = ctx.parsed; const p = totalEntradas > 0 ? ((v/totalEntradas)*100).toFixed(1) : 0; return ctx.label + ': ' + formatMoney(v) + ' (' + p + '%)'; } } } }, cutout: '60%' }
+    });
+  }
+
+  const barCtx = document.getElementById('barChart');
+  if (barCtx) {
+    if (barChartInst) barChartInst.destroy();
+    barChartInst = new Chart(barCtx, {
+      type: 'bar', data: { labels: ['Receitas','Despesas'], datasets: [{ label: 'Valores (R$)', data: [totalEntradas, saidas], backgroundColor: ['#22C55E','#D90000'], borderColor: ['#16A34A','#B80000'], borderWidth: 2, borderRadius: 8, barPercentage: 0.5 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1A1A1A', titleColor: '#fff', bodyColor: '#B0B0B0', borderColor: '#3D3D3D', borderWidth: 1, callbacks: { label: function(ctx) { return formatMoney(ctx.parsed.y); } } } }, scales: { x: { ticks: { color: '#B0B0B0', font: { family:'Inter', size:13 } }, grid: { color: '#2D2D2D' } }, y: { ticks: { color: '#B0B0B0', font: { family:'Inter', size:11 }, callback: function(v) { return 'R$ ' + (v/1000).toFixed(0) + 'k'; } }, grid: { color: '#2D2D2D' } } } }
+    });
+  }
+}
+
+function showToast(msg, type = 'success') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  const icon = type === 'error' ? 'fa-exclamation-circle' : type === 'info' ? 'fa-info-circle' : 'fa-check-circle';
+  toast.innerHTML = `<i class="fas ${icon}"></i><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function showLoading(text) {
+  document.getElementById('loadingText').textContent = text;
+  document.getElementById('loadingOverlay').style.display = 'flex';
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+const now = new Date();
+document.getElementById('currentDate').textContent = now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+// Auto-connect if URL saved
+if (dbUrl) {
+  setTimeout(() => connectFirebase(), 500);
+}
+
+// Expose updateDashboard globally for sync callbacks
+window.updateDashboard = updateDashboard;
+</script>
+
+</body>
+</html>
